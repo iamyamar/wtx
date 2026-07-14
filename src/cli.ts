@@ -3,7 +3,11 @@ import { Command } from "commander";
 import { createCommand } from "./commands/create.js";
 import { destroyCommand } from "./commands/destroy.js";
 import { doctorCommand } from "./commands/doctor.js";
+import { enterCommand } from "./commands/enter.js";
 import { listCommand } from "./commands/list.js";
+import { pruneCommand } from "./commands/prune.js";
+import { refreshCommand } from "./commands/refresh.js";
+import { runCommand } from "./commands/run.js";
 import { statusCommand } from "./commands/status.js";
 import { getRepoRoot } from "./core/worktree.js";
 
@@ -32,6 +36,30 @@ program
   .command("status <branch>")
   .description("Show sandbox state and dependency drift")
   .action(async (branch: string) => statusCommand(await getRepoRoot(process.cwd()), branch));
+
+program
+  .command("enter <branch>")
+  .description("Open a shell in an existing sandbox")
+  .action(async (branch: string) => enterCommand(await getRepoRoot(process.cwd()), branch));
+
+program
+  .command("prune")
+  .description("Remove all sandboxes for this repository")
+  .option("-f, --force", "Discard uncommitted or untracked changes")
+  .action(async (options: { force: boolean }) => pruneCommand(await getRepoRoot(process.cwd()), options.force));
+
+program
+  .command("refresh <branch>")
+  .description("Re-link dependencies and shared config for a sandbox")
+  .action(async (branch: string) => refreshCommand(await getRepoRoot(process.cwd()), branch));
+
+program
+  .command("run <branch>")
+  .description("Run a command inside a sandbox")
+  .allowUnknownOption()
+  .argument("<command...>", "Command to execute")
+  .option("-s, --shell", "Run command through a shell")
+  .action(async (branch: string, command: string[], options: { shell: boolean }) => runCommand(await getRepoRoot(process.cwd()), branch, command, options.shell));
 
 program
   .command("doctor")

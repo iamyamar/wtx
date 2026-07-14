@@ -4,8 +4,11 @@ import { execa } from "execa";
 import type { WorktreeInfo } from "../types.js";
 
 export async function getRepoRoot(cwd: string): Promise<string> {
-  const { stdout } = await execa("git", ["rev-parse", "--show-toplevel"], { cwd });
-  return fs.realpath(path.resolve(stdout.trim()));
+  const { stdout } = await execa("git", ["rev-parse", "--git-common-dir"], { cwd });
+  const commonDir = stdout.trim();
+  const resolved = path.resolve(cwd, commonDir);
+  const parent = path.dirname(resolved);
+  return fs.realpath(parent);
 }
 
 export async function getRepoName(cwd: string): Promise<string> {
