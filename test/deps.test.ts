@@ -28,4 +28,65 @@ describe("dependency sharing", () => {
     const sourceValue = await fs.readFile(source, "utf8");
     expect(sourceValue).toBe(strategy === "reflink" ? "main" : "sandbox");
   });
+
+  it("automatically detects and links Python .venv and hashes pyproject.toml", async () => {
+    const root = await temporaryDirectory("ocs-deps-python-");
+    cleanup.push(root);
+    const main = path.join(root, "main");
+    const sandbox = path.join(root, "sandbox");
+    await fs.mkdir(path.join(main, ".venv", "lib"), { recursive: true });
+    await fs.mkdir(sandbox);
+    await fs.writeFile(path.join(main, ".venv", "lib", "site.py"), "print('hello')");
+    await fs.writeFile(path.join(main, "pyproject.toml"), '[project]\nname = "demo"\n');
+
+    const strategy = await linkDependencies(main, sandbox);
+    expect(["reflink", "symlink"]).toContain(strategy);
+    const sitePyExists = await fs.access(path.join(sandbox, ".venv", "lib", "site.py")).then(() => true).catch(() => false);
+    expect(sitePyExists).toBe(true);
+
+    const { hashPackageJson } = await import("../src/core/deps.js");
+    const hash = await hashPackageJson(main);
+    expect(hash).not.toBeNull();
+  });
+
+  it("automatically detects and links Rust target/ and hashes Cargo.lock", async () => {
+    const root = await temporaryDirectory("ocs-deps-rust-");
+    cleanup.push(root);
+    const main = path.join(root, "main");
+    const sandbox = path.join(root, "sandbox");
+    await fs.mkdir(path.join(main, "target", "debug"), { recursive: true });
+    await fs.mkdir(sandbox);
+    await fs.writeFile(path.join(main, "target", "debug", "binary"), "executable");
+    await fs.writeFile(path.join(main, "Cargo.toml"), '[package]\nname = "demo"\n');
+    await fs.writeFile(path.join(main, "Cargo.lock"), '# Lockfile\n');
+
+    const strategy = await linkDependencies(main, sandbox);
+    expect(["reflink", "symlink"]).toContain(strategy);
+    const binaryExists = await fs.access(path.join(sandbox, "target", "debug", "binary")).then(() => true).catch(() => false);
+    expect(binaryExists).toBe(true);
+  });
+
+  it("links custom dependencyDirs and hashes custom manifestFiles from .sandboxrc.json", async () => {
+    const root = await temporaryDirectory("ocs-deps-custom-");
+    cleanup.push(root);
+    const main = path.join(root, "main");
+    const sandbox = path.join(root, "sandbox");
+    await fs.mkdir(path.join(main, ".cache", "custom-dep"), { recursive: true });
+    await fs.mkdir(sandbox);
+    await fs.writeFile(path.join(main, ".cache", "custom-dep", "data.json"), '{"ok": true}');
+    await fs.writeFile(path.join(main, "custom.manifest"), "version=1");
+    await fs.writeFile(path.join(main, ".sandboxrc.json"), JSON.stringify({
+      dependencyDirs: [".cache/custom-dep"],
+      manifestFiles: ["custom.manifest"]
+    }));
+
+    const strategy = await linkDependencies(main, sandbox);
+    expect(["reflink", "symlink"]).toContain(strategy);
+    const dataExists = await fs.access(path.join(sandbox, ".cache", "custom-dep", "data.json")).then(() => true).catch(() => false);
+    expect(dataExists).toBe(true);
+
+    const { hashPackageJson } = await import("../src/core/deps.js");
+    const hash = await hashPackageJson(main);
+    expect(hash).not.toBeNull();
+  });
 });

@@ -1,6 +1,6 @@
 {
   "name": "opencode-sandbox",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Create isolated Git worktree sandboxes that reuse local development dependencies.",
   "type": "module",
   "packageManager": "pnpm@11.7.0",

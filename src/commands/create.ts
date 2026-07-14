@@ -1,15 +1,18 @@
 import chalk from "chalk";
-import { checkDrift, dependencyWarning, hashPackageJson, linkDependencies, linkSharedConfig, readSandboxConfig } from "../core/deps.js";
+import { checkDrift, dependencyWarning, hashPackageJson, linkDependencies, linkSharedConfig, readSandboxConfig, readFullConfig } from "../core/deps.js";
 import { sandboxPath, repositoryKey } from "../core/paths.js";
 import { allocatePort } from "../core/ports.js";
 import { removeSandbox, reserveSandbox, upsertSandbox } from "../core/registry.js";
 import { openSandboxShell } from "../core/shell.js";
-import { createWorktree, getRepoName, getRepoRoot, pruneWorktrees, removeWorktree } from "../core/worktree.js";
+import { branchIsCheckedOutElsewhere, createWorktree, getRepoName, getRepoRoot, pruneWorktrees, removeWorktree } from "../core/worktree.js";
+import { runHook } from "../core/hooks.js";
 import type { DependencyStrategy, SandboxRecord } from "../types.js";
 
 export interface CreateOptions {
   shell: boolean;
   port: boolean;
+  from?: string;
+  hooks: boolean;
 }
 
 function registeredPorts(registry: Record<string, Record<string, SandboxRecord>>): number[] {
@@ -20,10 +23,21 @@ function registeredPorts(registry: Record<string, Record<string, SandboxRecord>>
 
 export async function createCommand(branch: string, options: CreateOptions): Promise<void> {
   const mainRepoPath = await getRepoRoot(process.cwd());
+
+  // Guard: prevent checking out a branch that's already in use
+  if (await branchIsCheckedOutElsewhere(mainRepoPath, branch)) {
+    throw new Error(
+      `Branch "${branch}" is already checked out in another worktree. Use a different branch name or detach it first.`,
+    );
+  }
+
   const repoName = await getRepoName(mainRepoPath);
   const repoKey = repositoryKey(mainRepoPath);
   const dir = sandboxPath(repoKey, branch);
   const now = new Date().toISOString();
+
+  // Read config for port range
+  const fullConfig = await readFullConfig(mainRepoPath);
 
   const reservation = await reserveSandbox(repoKey, branch, async (registry) => ({
     repo: repoName,
@@ -34,7 +48,7 @@ export async function createCommand(branch: string, options: CreateOptions): Pro
     createdAt: now,
     lastAccessed: now,
     depsStrategy: "none",
-    port: options.port ? await allocatePort(branch, registeredPorts(registry)) : null,
+    port: options.port ? await allocatePort(branch, registeredPorts(registry), fullConfig.portRange) : null,
     packageJsonHash: null,
     state: "creating",
   }));
@@ -42,7 +56,7 @@ export async function createCommand(branch: string, options: CreateOptions): Pro
   let worktreeCreated = false;
   try {
     console.log(chalk.cyan(`Creating sandbox for ${branch}…`));
-    await createWorktree(mainRepoPath, dir, branch);
+    await createWorktree(mainRepoPath, dir, branch, options.from);
     worktreeCreated = true;
 
     const depsStrategy = await linkDependencies(mainRepoPath, dir);
@@ -65,10 +79,14 @@ export async function createCommand(branch: string, options: CreateOptions): Pro
     if (await checkDrift(mainRepoPath, completeRecord.packageJsonHash)) {
       console.log(chalk.yellow("Dependencies changed while the sandbox was being created; run `ocs status` before using it."));
     }
+
+    // Run post-create hook
+    if (options.hooks) {
+      await runHook(mainRepoPath, "postCreate", dir, branch);
+    }
+
     if (options.shell) await openSandboxShell(dir, branch, completeRecord.port);
   } catch (error) {
-    // The reservation is deliberately removed only after a best-effort Git
-    // cleanup. If that cleanup fails, doctor can see the unregistered worktree.
     if (worktreeCreated) {
       await removeWorktree(mainRepoPath, dir, true).catch(() => undefined);
       await pruneWorktrees(mainRepoPath).catch(() => undefined);

@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import chalk from "chalk";
-import { checkDrift, dependencyWarning, hashPackageJson, linkDependencies, linkSharedConfig, readSandboxConfig } from "../core/deps.js";
+import { checkDrift, dependencyWarning, hashPackageJson, linkDependencies, linkSharedConfig, readSandboxConfig, readDependencyDirs } from "../core/deps.js";
 import { repositoryKey } from "../core/paths.js";
 import { getSandbox, upsertSandbox } from "../core/registry.js";
 
@@ -10,14 +10,17 @@ export async function refreshCommand(mainRepoPath: string, branch: string): Prom
   const record = await getSandbox(repoKey, branch);
   if (!record) {
     console.log(chalk.yellow(`No sandbox registered for branch "${branch}".`));
+    process.exitCode = 1;
     return;
   }
 
-  const existingNodeModules = path.join(record.path, "node_modules");
-  try {
-    await fs.rm(existingNodeModules, { recursive: true, force: true });
-  } catch {
-    // node_modules may not exist; that's fine
+  const depDirs = await readDependencyDirs(mainRepoPath);
+  for (const dir of depDirs) {
+    try {
+      await fs.rm(path.join(record.path, dir), { recursive: true, force: true });
+    } catch {
+      /* directory may not exist or already cleaned */
+    }
   }
 
   const recordHash = await hashPackageJson(mainRepoPath);

@@ -5,7 +5,32 @@ import { execa } from "execa";
 import type { DependencyStrategy, SandboxConfig } from "../types.js";
 
 const DEFAULT_SHARED_FILES = [".env", ".env.local", ".vscode/settings.json"];
-const LOCK_FILES = ["package-lock.json", "pnpm-lock.yaml", "yarn.lock", "bun.lockb"];
+
+export const KNOWN_DEPENDENCY_DIRS = [
+  "node_modules",   // JS / Node / Bun / Deno
+  ".venv",          // Python (venv / uv / poetry)
+  "venv",           // Python alternative
+  "__pypackages__", // Python PEP 582
+  "target",         // Rust (Cargo) / Java (Maven)
+  "vendor",         // PHP (Composer) / Go / Ruby
+  ".bundle",        // Ruby (Bundler)
+  "deps",           // Elixir (Mix)
+  "_build",         // Elixir build
+  ".gradle",        // Kotlin / Java (Gradle)
+  "build",          // General C / C++ / Java build
+];
+
+export const KNOWN_MANIFEST_FILES = [
+  "package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock", "bun.lockb",
+  "pyproject.toml", "requirements.txt", "poetry.lock", "Pipfile", "Pipfile.lock", "uv.lock",
+  "Cargo.toml", "Cargo.lock",
+  "composer.json", "composer.lock",
+  "Gemfile", "Gemfile.lock",
+  "go.mod", "go.sum",
+  "mix.exs", "mix.lock",
+  "pom.xml", "build.gradle", "build.gradle.kts", "gradle.properties",
+  "CMakeLists.txt", "conanfile.txt", "vcpkg.json",
+];
 
 async function pathExists(filePath: string): Promise<boolean> {
   try {
@@ -17,21 +42,95 @@ async function pathExists(filePath: string): Promise<boolean> {
   }
 }
 
+function validateRepoRelativePath(repoPath: string, item: string, fieldName: string): string {
+  if (typeof item !== "string" || !item.trim()) throw new Error(`${fieldName} entries must be non-empty strings.`);
+  if (path.isAbsolute(item)) throw new Error(`${fieldName} must be repository-relative, not absolute: ${item}`);
+  const resolved = path.resolve(repoPath, item);
+  const relative = path.relative(repoPath, resolved);
+  if (relative === "" || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    throw new Error(`${fieldName} entry escapes the repository: ${item}`);
+  }
+  return relative;
+}
+
+/** Return the full parsed .sandboxrc.json config object. */
+export async function readFullConfig(repoPath: string): Promise<SandboxConfig> {
+  const configPath = path.join(repoPath, ".sandboxrc.json");
+  if (!(await pathExists(configPath))) return { sharedFiles: DEFAULT_SHARED_FILES };
+  let parsed: SandboxConfig;
+  try {
+    parsed = JSON.parse(await fs.readFile(configPath, "utf8")) as SandboxConfig;
+  } catch (error) {
+    throw new Error(`Cannot parse ${configPath}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+    throw new Error(`${configPath} must contain a JSON object.`);
+  }
+  return {
+    sharedFiles: parsed.sharedFiles === undefined
+      ? DEFAULT_SHARED_FILES
+      : [...new Set((parsed.sharedFiles as string[]).map((item) => validateRepoRelativePath(repoPath, item, "sharedFiles")))],
+    dependencyDirs: parsed.dependencyDirs === undefined
+      ? undefined
+      : [...new Set((parsed.dependencyDirs as string[]).map((item) => validateRepoRelativePath(repoPath, item, "dependencyDirs")))],
+    manifestFiles: parsed.manifestFiles === undefined
+      ? undefined
+      : [...new Set((parsed.manifestFiles as string[]).map((item) => validateRepoRelativePath(repoPath, item, "manifestFiles")))],
+    portRange: parsed.portRange,
+    hooks: parsed.hooks,
+  };
+}
+
+export async function readSandboxConfig(repoPath: string): Promise<string[]> {
+  const config = await readFullConfig(repoPath);
+  return config.sharedFiles ?? DEFAULT_SHARED_FILES;
+}
+
+/** Read active dependency directories (from config or probed known ecosystems). */
+export async function readDependencyDirs(repoPath: string): Promise<string[]> {
+  const config = await readFullConfig(repoPath);
+  if (config.dependencyDirs !== undefined) return config.dependencyDirs;
+
+  const found: string[] = [];
+  for (const dir of KNOWN_DEPENDENCY_DIRS) {
+    if (await pathExists(path.join(repoPath, dir))) {
+      found.push(dir);
+    }
+  }
+  return found;
+}
+
+/** Read active manifest/lock files (from config or probed known ecosystems). */
+export async function readManifestFiles(repoPath: string): Promise<string[]> {
+  const config = await readFullConfig(repoPath);
+  if (config.manifestFiles !== undefined) return config.manifestFiles;
+
+  const found: string[] = [];
+  for (const file of KNOWN_MANIFEST_FILES) {
+    if (await pathExists(path.join(repoPath, file))) {
+      found.push(file);
+    }
+  }
+  return found;
+}
+
+/** Compute a combined SHA-256 hash of all active manifest/lock files. */
 export async function hashPackageJson(repoPath: string): Promise<string | null> {
-  const packageJson = path.join(repoPath, "package.json");
-  if (!(await pathExists(packageJson))) return null;
+  const manifests = await readManifestFiles(repoPath);
+  if (!manifests.length) return null;
 
   const hash = crypto.createHash("sha256");
-  hash.update(await fs.readFile(packageJson));
-  for (const lockFile of LOCK_FILES) {
-    const filePath = path.join(repoPath, lockFile);
+  for (const file of manifests) {
+    const filePath = path.join(repoPath, file);
     if (await pathExists(filePath)) {
-      hash.update(`\u0000${lockFile}\u0000`);
+      hash.update(`\u0000${file}\u0000`);
       hash.update(await fs.readFile(filePath));
     }
   }
   return hash.digest("hex");
 }
+
+export const hashManifestFiles = hashPackageJson;
 
 async function runReflinkCopy(source: string, destination: string): Promise<void> {
   if (process.platform === "linux") {
@@ -63,62 +162,49 @@ export async function supportsReflink(dir: string): Promise<boolean> {
   }
 }
 
+/** Link all active dependency directories (reflink or symlink) into the sandbox. */
 export async function linkDependencies(mainRepoPath: string, sandboxDir: string): Promise<DependencyStrategy> {
-  const source = path.join(mainRepoPath, "node_modules");
-  const destination = path.join(sandboxDir, "node_modules");
-  if (!(await pathExists(source))) return "none";
-  if (await pathExists(destination)) {
-    throw new Error(`Refusing to replace existing dependency directory: ${destination}`);
-  }
+  const depDirs = await readDependencyDirs(mainRepoPath);
+  if (!depDirs.length) return "none";
 
-  if (await supportsReflink(mainRepoPath)) {
-    try {
-      await runReflinkCopy(source, destination);
-      return "reflink";
-    } catch {
-      // A large tree can still fail after a successful one-file probe. Remove
-      // only the destination we own, then fall back to a visible symlink.
-      await fs.rm(destination, { recursive: true, force: true });
+  const reflinkAvailable = await supportsReflink(mainRepoPath);
+  let linkedCount = 0;
+  let usedReflink = false;
+
+  for (const depDir of depDirs) {
+    const source = path.join(mainRepoPath, depDir);
+    const destination = path.join(sandboxDir, depDir);
+    if (!(await pathExists(source))) continue;
+    if (await pathExists(destination)) {
+      throw new Error(`Refusing to replace existing dependency directory: ${destination}`);
     }
+
+    await fs.mkdir(path.dirname(destination), { recursive: true });
+    linkedCount += 1;
+    if (reflinkAvailable) {
+      try {
+        await runReflinkCopy(source, destination);
+        usedReflink = true;
+        continue;
+      } catch {
+        // A large tree can still fail after a successful one-file probe. Remove
+        // only the destination we own, then fall back to a visible symlink.
+        await fs.rm(destination, { recursive: true, force: true });
+      }
+    }
+
+    await fs.symlink(source, destination, process.platform === "win32" ? "junction" : "dir");
   }
 
-  await fs.symlink(source, destination, process.platform === "win32" ? "junction" : "dir");
-  return "symlink";
-}
-
-function validateSharedFile(repoPath: string, item: string): string {
-  if (typeof item !== "string" || !item.trim()) throw new Error("sharedFiles entries must be non-empty strings.");
-  if (path.isAbsolute(item)) throw new Error(`sharedFiles must be repository-relative, not absolute: ${item}`);
-  const resolved = path.resolve(repoPath, item);
-  const relative = path.relative(repoPath, resolved);
-  if (relative === "" || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
-    throw new Error(`sharedFiles entry escapes the repository: ${item}`);
-  }
-  return relative;
-}
-
-export async function readSandboxConfig(repoPath: string): Promise<string[]> {
-  const configPath = path.join(repoPath, ".sandboxrc.json");
-  if (!(await pathExists(configPath))) return DEFAULT_SHARED_FILES;
-  let parsed: SandboxConfig;
-  try {
-    parsed = JSON.parse(await fs.readFile(configPath, "utf8")) as SandboxConfig;
-  } catch (error) {
-    throw new Error(`Cannot parse ${configPath}: ${error instanceof Error ? error.message : String(error)}`);
-  }
-  if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
-    throw new Error(`${configPath} must contain a JSON object.`);
-  }
-  if (parsed.sharedFiles === undefined) return DEFAULT_SHARED_FILES;
-  if (!Array.isArray(parsed.sharedFiles)) throw new Error(`${configPath}: sharedFiles must be an array.`);
-  return [...new Set(parsed.sharedFiles.map((item) => validateSharedFile(repoPath, item)))];
+  if (linkedCount === 0) return "none";
+  return usedReflink ? "reflink" : "symlink";
 }
 
 /** Symlink selected ignored configuration without overwriting worktree content. */
 export async function linkSharedConfig(mainRepoPath: string, sandboxDir: string, files: readonly string[]): Promise<string[]> {
   const linked: string[] = [];
   for (const file of files) {
-    const safeFile = validateSharedFile(mainRepoPath, file);
+    const safeFile = validateRepoRelativePath(mainRepoPath, file, "sharedFiles");
     const source = path.join(mainRepoPath, safeFile);
     const destination = path.join(sandboxDir, safeFile);
     if (!(await pathExists(source)) || (await pathExists(destination))) continue;
@@ -137,8 +223,10 @@ export async function checkDrift(mainRepoPath: string, sandboxRecordHash: string
 
 export function dependencyWarning(strategy: DependencyStrategy): string | undefined {
   if (strategy === "symlink") {
-    return "Dependencies are symlinked: changes inside node_modules affect the main checkout.";
+    return "Dependencies are symlinked: changes inside dependency directories affect the main checkout.";
   }
-  if (strategy === "none") return "No node_modules directory was found in the main checkout; install dependencies inside this sandbox if needed.";
+  if (strategy === "none") {
+    return "No dependency directory was found in the main checkout; install dependencies inside this sandbox if needed.";
+  }
   return undefined;
 }

@@ -29,7 +29,7 @@ async function localBranchExists(repoPath: string, branch: string): Promise<bool
   throw new Error(result.stderr || `Could not check whether branch "${branch}" exists.`);
 }
 
-export async function createWorktree(mainRepoPath: string, sandboxDir: string, branch: string): Promise<void> {
+export async function createWorktree(mainRepoPath: string, sandboxDir: string, branch: string, startPoint?: string): Promise<void> {
   await execa("git", ["check-ref-format", "--branch", branch], { cwd: mainRepoPath });
   try {
     await fs.lstat(sandboxDir);
@@ -41,7 +41,7 @@ export async function createWorktree(mainRepoPath: string, sandboxDir: string, b
   await fs.mkdir(path.dirname(sandboxDir), { recursive: true });
   const args = (await localBranchExists(mainRepoPath, branch))
     ? ["worktree", "add", sandboxDir, branch]
-    : ["worktree", "add", "-b", branch, sandboxDir];
+    : ["worktree", "add", "-b", branch, sandboxDir, ...(startPoint ? [startPoint] : [])];
   await execa("git", args, { cwd: mainRepoPath });
 }
 

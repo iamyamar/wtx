@@ -29,10 +29,16 @@ export async function doctorCommand(mainRepoPath: string, options: DoctorOptions
   }
   const repoKey = repositoryKey(mainRepoPath);
   const sandboxDirectory = repoSandboxDir(repoKey);
+  const realSandboxDirectory = await fs.realpath(sandboxDirectory).catch(() => path.resolve(sandboxDirectory));
   const registry = await readRegistry();
   const records = registry[repoKey] ?? {};
   const worktrees = await listWorktrees(mainRepoPath);
-  const sandboxWorktrees = worktrees.filter((worktree) => isInside(sandboxDirectory, path.resolve(worktree.path)));
+  const sandboxWorktrees = await Promise.all(
+    worktrees.map(async (worktree) => {
+      const realPath = await fs.realpath(worktree.path).catch(() => path.resolve(worktree.path));
+      return { ...worktree, realPath };
+    }),
+  ).then((list) => list.filter((worktree) => isInside(realSandboxDirectory, worktree.realPath)));
   const existingSandboxWorktrees = await Promise.all(
     sandboxWorktrees.map(async (worktree) => ({
       worktree,
@@ -40,11 +46,19 @@ export async function doctorCommand(mainRepoPath: string, options: DoctorOptions
     })),
   );
   const actualPaths = new Set(
-    existingSandboxWorktrees.filter(({ exists }) => exists).map(({ worktree }) => path.resolve(worktree.path)),
+    existingSandboxWorktrees.filter(({ exists }) => exists).map(({ worktree }) => worktree.realPath),
   );
-  const registeredPaths = new Set(Object.values(records).map((record) => path.resolve(record.path)));
-  const stale = Object.values(records).filter((record) => !actualPaths.has(path.resolve(record.path)));
-  const orphans = sandboxWorktrees.filter((worktree) => !registeredPaths.has(path.resolve(worktree.path)));
+  const registeredPaths = new Set(
+    await Promise.all(Object.values(records).map(async (record) => fs.realpath(record.path).catch(() => path.resolve(record.path)))),
+  );
+  const staleRecords = await Promise.all(
+    Object.values(records).map(async (record) => ({
+      record,
+      realPath: await fs.realpath(record.path).catch(() => path.resolve(record.path)),
+    })),
+  );
+  const stale = staleRecords.filter(({ realPath }) => !actualPaths.has(realPath)).map(({ record }) => record);
+  const orphans = sandboxWorktrees.filter((worktree) => !registeredPaths.has(worktree.realPath));
 
   console.log(`Registered sandboxes: ${Object.keys(records).length}`);
   console.log(`Git worktrees under ${sandboxDirectory}: ${sandboxWorktrees.length}`);

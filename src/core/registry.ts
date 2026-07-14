@@ -81,8 +81,20 @@ export async function reserveSandbox(
   makeRecord: (registry: Registry) => Promise<SandboxRecord> | SandboxRecord,
 ): Promise<SandboxRecord> {
   return withRegistry(async (registry) => {
-    if (registry[repoKey]?.[branch]) {
-      throw new Error(`A sandbox for branch "${branch}" is already registered. Run \`ocs status ${branch}\` or \`ocs doctor\`.`);
+    const existing = registry[repoKey]?.[branch];
+    if (existing) {
+      const STALE_CREATING_MS = 5 * 60 * 1000;
+      if (
+        existing.state === "creating" &&
+        Date.now() - new Date(existing.createdAt).getTime() > STALE_CREATING_MS
+      ) {
+        delete registry[repoKey]![branch];
+      } else {
+        throw new Error(
+          `A sandbox for branch "${branch}" is already registered (state: ${existing.state}). ` +
+            `Run \`ocs status ${branch}\` or \`ocs doctor --repair\`.`,
+        );
+      }
     }
     const record = await makeRecord(registry);
     registry[repoKey] ??= {};

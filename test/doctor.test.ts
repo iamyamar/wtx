@@ -46,4 +46,34 @@ describe("doctor", () => {
     await doctorCommand(repo, { repair: true, adoptOrphans: false, removeOrphans: false });
     expect((await readRegistry())[repoKey]?.["feature/lost"]).toBeUndefined();
   });
+
+  it("registers untracked sandbox worktrees when using --adopt-orphans", async () => {
+    root = await temporaryDirectory("ocs-doctor-");
+    const repo = path.join(root, "repo");
+    await fs.mkdir(repo);
+    await initialiseRepo(repo);
+    process.env.OPENCODE_SANDBOX_HOME = path.join(root, "registry");
+    const repoKey = repositoryKey(repo);
+    const sandbox = path.join(repoSandboxDir(repoKey), "orphan-worktree");
+    await createWorktree(repo, sandbox, "feature/orphan");
+
+    await doctorCommand(repo, { repair: false, adoptOrphans: true, removeOrphans: false });
+    const registry = await readRegistry();
+    expect(registry[repoKey]?.["feature/orphan"]).toBeDefined();
+  });
+
+  it("removes untracked sandbox worktrees when using --remove-orphans", async () => {
+    root = await temporaryDirectory("ocs-doctor-");
+    const repo = path.join(root, "repo");
+    await fs.mkdir(repo);
+    await initialiseRepo(repo);
+    process.env.OPENCODE_SANDBOX_HOME = path.join(root, "registry");
+    const repoKey = repositoryKey(repo);
+    const sandbox = path.join(repoSandboxDir(repoKey), "unwanted-orphan");
+    await createWorktree(repo, sandbox, "feature/unwanted");
+
+    await doctorCommand(repo, { repair: false, adoptOrphans: false, removeOrphans: true });
+    const exists = await fs.access(sandbox).then(() => true).catch(() => false);
+    expect(exists).toBe(false);
+  });
 });

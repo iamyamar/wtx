@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import chalk from "chalk";
 import { repositoryKey } from "../core/paths.js";
-import { getSandbox } from "../core/registry.js";
+import { getSandbox, touchSandbox } from "../core/registry.js";
 
 export async function runCommand(mainRepoPath: string, branch: string, command: string[], shell: boolean): Promise<void> {
   const repoKey = repositoryKey(mainRepoPath);
@@ -11,6 +11,8 @@ export async function runCommand(mainRepoPath: string, branch: string, command: 
     process.exitCode = 1;
     return;
   }
+
+  await touchSandbox(repoKey, branch);
 
   const program = shell
     ? [process.env.SHELL || "/bin/bash", "-c", command.join(" ")]
