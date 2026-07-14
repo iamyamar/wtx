@@ -23,6 +23,10 @@ function branchFromWorktree(worktree: WorktreeInfo): string | undefined {
   return worktree.branch?.startsWith(prefix) ? worktree.branch.slice(prefix.length) : undefined;
 }
 
+function normalizeDoctorPath(p: string): string {
+  return process.platform === "win32" ? p.toLowerCase() : p;
+}
+
 export async function doctorCommand(mainRepoPath: string, options: DoctorOptions): Promise<void> {
   if (options.adoptOrphans && options.removeOrphans) {
     throw new Error("Choose either --adopt-orphans or --remove-orphans, not both.");
@@ -46,19 +50,19 @@ export async function doctorCommand(mainRepoPath: string, options: DoctorOptions
     })),
   );
   const actualPaths = new Set(
-    existingSandboxWorktrees.filter(({ exists }) => exists).map(({ worktree }) => worktree.realPath),
+    existingSandboxWorktrees.filter(({ exists }) => exists).map(({ worktree }) => normalizeDoctorPath(worktree.realPath)),
   );
   const registeredPaths = new Set(
-    await Promise.all(Object.values(records).map(async (record) => fs.realpath(record.path).catch(() => path.resolve(record.path)))),
+    await Promise.all(Object.values(records).map(async (record) => normalizeDoctorPath(await fs.realpath(record.path).catch(() => path.resolve(record.path))))),
   );
   const staleRecords = await Promise.all(
     Object.values(records).map(async (record) => ({
       record,
-      realPath: await fs.realpath(record.path).catch(() => path.resolve(record.path)),
+      realPath: normalizeDoctorPath(await fs.realpath(record.path).catch(() => path.resolve(record.path))),
     })),
   );
   const stale = staleRecords.filter(({ realPath }) => !actualPaths.has(realPath)).map(({ record }) => record);
-  const orphans = sandboxWorktrees.filter((worktree) => !registeredPaths.has(worktree.realPath));
+  const orphans = sandboxWorktrees.filter((worktree) => !registeredPaths.has(normalizeDoctorPath(worktree.realPath)));
 
   console.log(`Registered sandboxes: ${Object.keys(records).length}`);
   console.log(`Git worktrees under ${sandboxDirectory}: ${sandboxWorktrees.length}`);

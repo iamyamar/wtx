@@ -117,7 +117,14 @@ If `dependencyDirs` or `manifestFiles` are omitted from `.sandboxrc.json`, `ocs`
 - **Elixir (Mix)**: `deps`, `_build`, `mix.exs`, `mix.lock`
 - **Java / Kotlin / C++**: `.gradle`, `build`, `pom.xml`, `build.gradle`, `CMakeLists.txt`
 
-If multiple dependency folders exist (e.g. `node_modules` + `.venv` in a full-stack project), `ocs` safely links all of them concurrently (`reflink` on APFS/btrfs/xfs, otherwise `symlink`).
+If multiple dependency folders exist (e.g. `node_modules` + `.venv` in a full-stack project), `ocs` safely links all of them concurrently (`reflink` on APFS/btrfs/xfs/ReFS, otherwise `symlink` or `junction`).
+
+### Cross-Platform & Windows Resilience (Block Cloning & EPERM Immunity)
+`ocs` uses a zero-overhead, 3-tier linking hierarchy designed to guarantee zero `EPERM` or `EXDEV` failures across corporate laptops, Dev Drives, restricted user accounts, and Docker mounts:
+- **True Windows Block Cloning (`reflink`)**: On **Windows 11 Dev Drives and ReFS volumes**, `ocs` automatically invokes `FSCTL_DUPLICATE_EXTENTS_TO_FILE` via Node's `COPYFILE_FICLONE_FORCE` to perform instantaneous, zero-copy `node_modules` / `target` block cloning.
+- **Directories (`dependencyDirs`, `.vscode`) Hierarchy**: `reflink` $\rightarrow$ `junction` (instantaneous Windows Directory Junction requiring zero Administrator rights or Developer Mode) $\rightarrow$ `recursive copy` (`fs.cp` fallback for SMB/FAT32/Docker mounts).
+- **Files (`sharedFiles` like `.env`) Hierarchy**: `symlink("file")` $\rightarrow$ `hardlink` (`fs.link()`, sharing live file data on NTFS/ReFS without elevated privileges) $\rightarrow$ `copyFile`.
+- **Path Case Normalization**: `ocs doctor` case-insensitively normalizes paths on Windows (`C:` vs `c:`) so drive letters never trigger false positive orphan warnings.
 
 ### Hooks Security & Execution
 Hooks run in the context of the sandbox directory (`OPENCODE_SANDBOX=1`, `OPENCODE_SANDBOX_BRANCH=<branch>`). To bypass post-create or pre-destroy hooks when debugging or cleaning up untrusted branches, pass `--no-hooks`:

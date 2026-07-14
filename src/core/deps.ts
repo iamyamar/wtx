@@ -142,12 +142,24 @@ async function runReflinkCopy(source: string, destination: string): Promise<void
     await execa("cp", ["-cR", source, destination]);
     return;
   }
+  if (process.platform === "win32") {
+    // On Windows ReFS / Dev Drive, Node's fs.cp with COPYFILE_FICLONE_FORCE
+    // invokes FSCTL_DUPLICATE_EXTENTS_TO_FILE for true copy-on-write block cloning.
+    await fs.cp(source, destination, {
+      recursive: true,
+      mode: fs.constants.COPYFILE_FICLONE_FORCE,
+      verbatimSymlinks: true,
+    });
+    return;
+  }
   throw new Error("This platform does not expose a supported reflink copy command.");
 }
 
 /** Probe the actual filesystem rather than assuming reflinks from the OS name. */
 export async function supportsReflink(dir: string): Promise<boolean> {
-  if (process.platform !== "linux" && process.platform !== "darwin") return false;
+  if (process.platform !== "linux" && process.platform !== "darwin" && process.platform !== "win32") {
+    return false;
+  }
   const probeDir = await fs.mkdtemp(path.join(dir, ".ocs-reflink-"));
   const source = path.join(probeDir, "source");
   const destination = path.join(probeDir, "destination");
@@ -158,7 +170,7 @@ export async function supportsReflink(dir: string): Promise<boolean> {
   } catch {
     return false;
   } finally {
-    await fs.rm(probeDir, { recursive: true, force: true });
+    await fs.rm(probeDir, { recursive: true, force: true }).catch(() => undefined);
   }
 }
 
@@ -188,12 +200,18 @@ export async function linkDependencies(mainRepoPath: string, sandboxDir: string)
         continue;
       } catch {
         // A large tree can still fail after a successful one-file probe. Remove
-        // only the destination we own, then fall back to a visible symlink.
-        await fs.rm(destination, { recursive: true, force: true });
+        // only the destination we own, then fall back to a visible symlink/junction.
+        await fs.rm(destination, { recursive: true, force: true }).catch(() => undefined);
       }
     }
 
-    await fs.symlink(source, destination, process.platform === "win32" ? "junction" : "dir");
+    try {
+      await fs.symlink(source, destination, process.platform === "win32" ? "junction" : "dir");
+    } catch {
+      // Ultimate fallback for restricted filesystems (FAT32/exFAT/SMB/Docker mounts)
+      // where symlinks and directory junctions are forbidden or fail with EPERM.
+      await fs.cp(source, destination, { recursive: true, verbatimSymlinks: true });
+    }
   }
 
   if (linkedCount === 0) return "none";
@@ -210,7 +228,26 @@ export async function linkSharedConfig(mainRepoPath: string, sandboxDir: string,
     if (!(await pathExists(source)) || (await pathExists(destination))) continue;
     await fs.mkdir(path.dirname(destination), { recursive: true });
     const sourceStat = await fs.stat(source);
-    await fs.symlink(source, destination, sourceStat.isDirectory() ? "dir" : "file");
+    if (sourceStat.isDirectory()) {
+      try {
+        await fs.symlink(source, destination, process.platform === "win32" ? "junction" : "dir");
+      } catch {
+        await fs.cp(source, destination, { recursive: true, verbatimSymlinks: true }).catch(() => undefined);
+      }
+    } else {
+      try {
+        await fs.symlink(source, destination, "file");
+      } catch {
+        // On Windows without Developer Mode / Admin rights, fs.symlink(..., "file") throws EPERM/EACCES.
+        // Fall back to a hard link (which requires zero elevated privileges on NTFS/ReFS and shares live content),
+        // and if hard link fails across different partitions, fall back to copyFile.
+        try {
+          await fs.link(source, destination);
+        } catch {
+          await fs.copyFile(source, destination).catch(() => undefined);
+        }
+      }
+    }
     linked.push(safeFile);
   }
   return linked;

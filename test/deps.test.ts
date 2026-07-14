@@ -89,4 +89,14 @@ describe("dependency sharing", () => {
     const hash = await hashPackageJson(main);
     expect(hash).not.toBeNull();
   });
+
+  it("probes supportsReflink cleanly across Windows, macOS, and Linux without throwing or leaking probe dirs", async () => {
+    const root = await temporaryDirectory("ocs-deps-reflink-probe-");
+    cleanup.push(root);
+    const { supportsReflink } = await import("../src/core/deps.js");
+    const result = await supportsReflink(root);
+    expect(typeof result).toBe("boolean");
+    const entries = await fs.readdir(root);
+    expect(entries.filter((e) => e.startsWith(".ocs-reflink-")).length).toBe(0);
+  });
 });
