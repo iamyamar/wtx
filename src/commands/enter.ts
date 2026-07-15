@@ -8,7 +8,7 @@ export async function enterCommand(mainRepoPath: string, branch: string): Promis
   const record = await getSandbox(repoKey, branch);
   if (!record) {
     console.log(chalk.yellow(`No sandbox registered for branch "${branch}".`));
-    console.log(`Run \`ocs create ${branch}\` to create one.`);
+    console.log(`Run \`wtx create ${branch}\` to create one.`);
     process.exitCode = 1;
     return;
   }

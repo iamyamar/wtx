@@ -3,9 +3,10 @@ import os from "node:os";
 import path from "node:path";
 
 export function sandboxRoot(): string {
-  return process.env.OPENCODE_SANDBOX_HOME
-    ? path.resolve(process.env.OPENCODE_SANDBOX_HOME)
-    : path.join(os.homedir(), ".opencode", "sandboxes");
+  const homeEnv = process.env.WTX_HOME || process.env.OPENCODE_SANDBOX_HOME;
+  return homeEnv
+    ? path.resolve(homeEnv)
+    : path.join(os.homedir(), ".wtx", "sandboxes");
 }
 
 /**

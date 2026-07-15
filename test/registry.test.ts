@@ -6,15 +6,15 @@ import { temporaryDirectory } from "./helpers.js";
 
 let registryHome: string | undefined;
 afterEach(async () => {
-  delete process.env.OPENCODE_SANDBOX_HOME;
+  delete process.env.WTX_HOME;
   if (registryHome) await fs.rm(registryHome, { recursive: true, force: true });
   registryHome = undefined;
 });
 
 describe("registry locking", () => {
   it("preserves concurrent upserts", async () => {
-    registryHome = await temporaryDirectory("ocs-registry-");
-    process.env.OPENCODE_SANDBOX_HOME = registryHome;
+    registryHome = await temporaryDirectory("wtx-registry-");
+    process.env.WTX_HOME = registryHome;
     const now = new Date().toISOString();
     const recordFor = (branch: string): SandboxRecord => ({
       repo: "demo",

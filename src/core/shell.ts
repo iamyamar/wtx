@@ -23,6 +23,8 @@ export function openSandboxShell(sandboxDir: string, branch: string, port: numbe
         PS1: prompt,
         PROMPT: `%F{magenta}(sandbox:${branch})%f %~ $ `,
       }),
+      WTX_SANDBOX: "1",
+      WTX_SANDBOX_BRANCH: branch,
       OPENCODE_SANDBOX: "1",
       OPENCODE_SANDBOX_BRANCH: branch,
     },

@@ -33,7 +33,7 @@ export async function createWorktree(mainRepoPath: string, sandboxDir: string, b
   await execa("git", ["check-ref-format", "--branch", branch], { cwd: mainRepoPath });
   try {
     await fs.lstat(sandboxDir);
-    throw new Error(`Sandbox directory already exists: ${sandboxDir}. Run \`ocs doctor\` before retrying.`);
+    throw new Error(`Sandbox directory already exists: ${sandboxDir}. Run \`wtx doctor\` before retrying.`);
   } catch (error: unknown) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }

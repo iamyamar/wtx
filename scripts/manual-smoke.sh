@@ -9,13 +9,13 @@ CLI="$(cd "$(dirname "$0")/.." && pwd)/dist/cli.js"
 
 mkdir -p "$REPO"
 git -C "$REPO" init -b main --quiet
-git -C "$REPO" config user.name "OCS smoke test"
-git -C "$REPO" config user.email "ocs@example.test"
+git -C "$REPO" config user.name "WTX smoke test"
+git -C "$REPO" config user.email "wtx@example.test"
 printf 'smoke test\n' > "$REPO/README.md"
 git -C "$REPO" add README.md
 git -C "$REPO" commit -m initial --quiet
 
-export OPENCODE_SANDBOX_HOME="$REGISTRY"
+export WTX_HOME="$REGISTRY"
 cd "$REPO"
 node "$CLI" create feature/smoke --no-shell --no-port
 node "$CLI" status feature/smoke

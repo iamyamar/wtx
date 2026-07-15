@@ -23,9 +23,8 @@ import { getRepoRoot } from "./core/worktree.js";
 
 const program = new Command();
 program
-  .name("opencode-sandbox")
-  .alias("ocs")
-  .description("Create isolated Git worktree sandboxes.")
+  .name("wtx")
+  .description("Create isolated Git worktree sandboxes with zero-copy dependency linking for feature work and AI/LLM agents.")
   .version("0.2.0")
   .option("--json", "Output results as JSON")
   .option("-q, --quiet", "Suppress non-error output")
@@ -184,6 +183,6 @@ program
 
 program.parseAsync().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
-  console.error(`ocs: ${message}`);
+  console.error(`wtx: ${message}`);
   process.exitCode = 1;
 });

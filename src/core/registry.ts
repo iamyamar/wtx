@@ -92,7 +92,7 @@ export async function reserveSandbox(
       } else {
         throw new Error(
           `A sandbox for branch "${branch}" is already registered (state: ${existing.state}). ` +
-            `Run \`ocs status ${branch}\` or \`ocs doctor --repair\`.`,
+            `Run \`wtx status ${branch}\` or \`wtx doctor --repair\`.`,
         );
       }
     }

@@ -16,7 +16,7 @@ export async function stashCommand(
   }
 
   const args =
-    action === "push" ? ["stash", "push", "-u", "-m", `ocs-stash-${branch}`] :
+    action === "push" ? ["stash", "push", "-u", "-m", `wtx-stash-${branch}`] :
     action === "pop"  ? ["stash", "pop"] :
     action === "list" ? ["stash", "list"] :
     (() => { throw new Error(`Unknown stash action: "${action}". Use push, pop, or list.`); })();

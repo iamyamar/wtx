@@ -160,7 +160,7 @@ export async function supportsReflink(dir: string): Promise<boolean> {
   if (process.platform !== "linux" && process.platform !== "darwin" && process.platform !== "win32") {
     return false;
   }
-  const probeDir = await fs.mkdtemp(path.join(dir, ".ocs-reflink-"));
+  const probeDir = await fs.mkdtemp(path.join(dir, ".wtx-reflink-"));
   const source = path.join(probeDir, "source");
   const destination = path.join(probeDir, "destination");
   try {

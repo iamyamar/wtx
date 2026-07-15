@@ -77,7 +77,7 @@ export async function createCommand(branch: string, options: CreateOptions): Pro
     const warning = dependencyWarning(depsStrategy);
     if (warning) console.log(chalk.yellow(warning));
     if (await checkDrift(mainRepoPath, completeRecord.packageJsonHash)) {
-      console.log(chalk.yellow("Dependencies changed while the sandbox was being created; run `ocs status` before using it."));
+      console.log(chalk.yellow("Dependencies changed while the sandbox was being created; run `wtx status` before using it."));
     }
 
     // Run post-create hook

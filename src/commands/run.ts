@@ -24,6 +24,8 @@ export async function runCommand(mainRepoPath: string, branch: string, command: 
     env: {
       ...process.env,
       ...(record.port === null ? {} : { PORT: String(record.port) }),
+      WTX_SANDBOX: "1",
+      WTX_SANDBOX_BRANCH: record.branch,
       OPENCODE_SANDBOX: "1",
       OPENCODE_SANDBOX_BRANCH: record.branch,
     },

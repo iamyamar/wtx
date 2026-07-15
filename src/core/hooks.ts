@@ -19,6 +19,8 @@ export async function runHook(
       stdio: "inherit",
       env: {
         ...process.env,
+        WTX_SANDBOX: "1",
+        WTX_SANDBOX_BRANCH: branch,
         OPENCODE_SANDBOX: "1",
         OPENCODE_SANDBOX_BRANCH: branch,
       },

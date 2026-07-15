@@ -1,12 +1,11 @@
 {
-  "name": "opencode-sandbox",
+  "name": "wtx",
   "version": "0.2.0",
-  "description": "Create isolated Git worktree sandboxes that reuse local development dependencies.",
+  "description": "Create isolated Git worktree sandboxes with instantaneous dependency linking (`reflink`) for feature work and AI/LLM agents.",
   "type": "module",
   "packageManager": "pnpm@11.7.0",
   "bin": {
-    "opencode-sandbox": "./dist/cli.js",
-    "ocs": "./dist/cli.js"
+    "wtx": "./dist/cli.js"
   },
   "files": [
     "dist",
@@ -16,11 +15,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/cli.ts",
-    "test": "pnpm run build && vitest run",
+    "test": "tsc -p tsconfig.json && vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "smoke": "pnpm run build && ./scripts/manual-smoke.sh",
-    "prepare": "pnpm run build"
+    "smoke": "tsc -p tsconfig.json && ./scripts/manual-smoke.sh",
+    "prepare": "tsc -p tsconfig.json"
   },
   "engines": {
     "node": ">=20"
@@ -28,7 +27,8 @@
   "keywords": [
     "git-worktree",
     "sandbox",
-    "opencode",
+    "wtx",
+    "ai-agents",
     "cli"
   ],
   "license": "MIT",

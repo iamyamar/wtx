@@ -60,6 +60,6 @@ export async function listCommand(mainRepoPath: string, options: ListOptions = {
   }
   const missingCount = rows.filter((r) => String(r.state).includes("missing")).length;
   if (missingCount) {
-    console.log(chalk.yellow(`${missingCount} sandbox(es) have missing directories. Run \`ocs doctor --repair\` to clean up.`));
+    console.log(chalk.yellow(`${missingCount} sandbox(es) have missing directories. Run \`wtx doctor --repair\` to clean up.`));
   }
 }

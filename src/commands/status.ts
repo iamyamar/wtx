@@ -29,7 +29,7 @@ export async function statusCommand(mainRepoPath: string, branch: string, option
     console.table([row]);
   }
   if (!options.json) {
-    if (!exists) console.log(chalk.red("Sandbox directory is missing. Run `ocs doctor --repair` to clear its stale registry entry."));
+    if (!exists) console.log(chalk.red("Sandbox directory is missing. Run `wtx doctor --repair` to clear its stale registry entry."));
     if (drifted) console.log(chalk.yellow("Main package manifest or lockfile changed since this sandbox was created; recreate it to refresh dependencies."));
   }
   if (exists) await touchSandbox(record.repoKey, record.branch);

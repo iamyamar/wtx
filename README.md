@@ -1,6 +1,6 @@
-# opencode-sandbox (`ocs`)
+# wtx
 
-`opencode-sandbox` (or `ocs`) creates isolated Git worktrees for feature work without copying an entire repository. It can reuse `node_modules` through filesystem copy-on-write clones where supported (`reflink`), otherwise through an explicit symlink fallback.
+`wtx` creates isolated Git worktrees for feature work without copying an entire repository. It can reuse `node_modules` through filesystem copy-on-write clones where supported (`reflink`), otherwise through an explicit symlink fallback.
 
 ## Features at a glance
 
@@ -14,12 +14,12 @@
 ## Installation & Setup
 
 ```sh
-pnpm install
-pnpm build
-pnpm link --global
+npm install
+npm run build
+npm link
 
 # Or run directly via npx / tsx
-ocs --help
+wtx --help
 ```
 
 ### Shell Completions
@@ -28,48 +28,49 @@ Generate and load completions for your shell (`bash`, `zsh`, or `fish`):
 
 ```sh
 # Bash (~/.bashrc)
-eval "$(ocs completion bash)"
+eval "$(wtx completion bash)"
 
 # Zsh (~/.zshrc)
-eval "$(ocs completion zsh)"
+eval "$(wtx completion zsh)"
 
 # Fish (~/.config/fish/config.fish)
-ocs completion fish | source
+wtx completion fish | source
 ```
 
 ## Commands Reference
 
 | Command | Description | Key Options |
 | --- | --- | --- |
-| `ocs create <branch>` | Create a sandbox and open a shell in it | `--no-shell`, `--no-port`, `--from <base>`, `--no-hooks` |
-| `ocs destroy <branch>` | Remove a sandbox worktree | `-f, --force`, `--no-hooks` |
-| `ocs list` | List registered sandboxes for this repository | `-a, --all`, `--size`, `--json` |
-| `ocs status <branch>` | Show sandbox state and dependency drift | `--json` |
-| `ocs enter <branch>` | Open an interactive shell in an existing sandbox | |
-| `ocs sync <branch>` | Rebase or merge upstream changes into a sandbox | `--merge`, `--from <upstream>` |
-| `ocs open <branch>` | Open a sandbox in your editor or file manager | `--editor <name>`, `--finder` |
-| `ocs which <branch>` | Print the sandbox directory path (for scripts/subshells) | |
-| `ocs diff <branch>` | Show changes relative to main | `--stat`, `--from <base>` |
-| `ocs log <branch>` | Show commits in a sandbox not in main | `-n, --number <count>`, `--from <base>` |
-| `ocs stash <branch> [action]` | Stash or restore changes in a sandbox (`push`, `pop`, `list`) | |
-| `ocs rename <old> <new>` | Rename a sandbox branch and update the registry | |
-| `ocs refresh <branch>` | Re-link dependencies and shared config | |
-| `ocs run <branch> <cmd...>` | Run a command inside a sandbox worktree | `-s, --shell` |
-| `ocs prune` | Remove all sandboxes for the current repository | `-f, --force` |
-| `ocs gc` | Remove sandboxes not accessed within a duration threshold | `--older-than <duration>` (`7d`), `--dry-run`, `-f` |
-| `ocs init` | Create a `.sandboxrc.json` configuration file | `--shared <files...>` |
-| `ocs doctor` | Compare the registry with Git worktrees and fix mismatches | `--repair`, `--adopt-orphans`, `--remove-orphans` |
+| `wtx create <branch>` | Create a sandbox and open a shell in it | `--no-shell`, `--no-port`, `--from <base>`, `--no-hooks` |
+| `wtx destroy <branch>` | Remove a sandbox worktree | `-f, --force`, `--no-hooks` |
+| `wtx list` | List registered sandboxes for this repository | `-a, --all`, `--size`, `--json` |
+| `wtx status <branch>` | Show sandbox state and dependency drift | `--json` |
+| `wtx enter <branch>` | Open an interactive shell in an existing sandbox | |
+| `wtx sync <branch>` | Rebase or merge upstream changes into a sandbox | `--merge`, `--from <upstream>` |
+| `wtx open <branch>` | Open a sandbox in your editor or file manager | `--editor <name>`, `--finder` |
+| `wtx which <branch>` | Print the sandbox directory path (for scripts/subshells) | |
+| `wtx diff <branch>` | Show changes relative to main | `--stat`, `--from <base>` |
+| `wtx log <branch>` | Show commits in a sandbox not in main | `-n, --number <count>`, `--from <base>` |
+| `wtx stash <branch> [action]` | Stash or restore changes in a sandbox (`push`, `pop`, `list`) | |
+| `wtx rename <old> <new>` | Rename a sandbox branch and update the registry | |
+| `wtx refresh <branch>` | Re-link dependencies and shared config | |
+| `wtx run <branch> <cmd...>` | Run a command inside a sandbox worktree | `-s, --shell` |
+| `wtx prune` | Remove all sandboxes for the current repository | `-f, --force` |
+| `wtx gc` | Remove sandboxes not accessed within a duration threshold | `--older-than <duration>` (`7d`), `--dry-run`, `-f` |
+| `wtx init` | Create a `.sandboxrc.json` configuration file | `--shared <files...>` |
+| `wtx doctor` | Compare the registry with Git worktrees and fix mismatches | `--repair`, `--adopt-orphans`, `--remove-orphans` |
 
 ## Global Options
 
 All commands support these global flags:
+
 - `--json`: Format command output as machine-readable JSON.
 - `-q, --quiet`: Suppress non-error output.
 - `-v, --verbose`: Enable detailed/diagnostic output.
 
 ## Configuration (`.sandboxrc.json`)
 
-Create a `.sandboxrc.json` file in your repository root (`ocs init`) to customize dependency linking, config sharing, port allocation, and lifecycle hooks across **any programming language or stack**:
+Create a `.sandboxrc.json` file in your repository root (`wtx init`) to customize dependency linking, config sharing, port allocation, and lifecycle hooks across **any programming language or stack**:
 
 ```json
 {
@@ -100,14 +101,14 @@ Create a `.sandboxrc.json` file in your repository root (`ocs init`) to customiz
     "max": 4200
   },
   "hooks": {
-    "postCreate": "pnpm install && pnpm run build:deps",
-    "preDestroy": "pnpm run clean:cache"
+    "postCreate": "npm install && npm run build:deps",
+    "preDestroy": "npm run clean:cache"
   }
 }
 ```
 
 ### Multi-Ecosystem Auto-Detection
-If `dependencyDirs` or `manifestFiles` are omitted from `.sandboxrc.json`, `ocs` automatically probes the repository for known folders and files across 8+ major language stacks:
+If `dependencyDirs` or `manifestFiles` are omitted from `.sandboxrc.json`, `wtx` automatically probes the repository for known folders and files across 8+ major language stacks:
 - **JavaScript / Node / Deno / Bun**: `node_modules`, `package.json`, `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `bun.lockb`
 - **Python (venv / poetry / uv)**: `.venv`, `venv`, `__pypackages__`, `pyproject.toml`, `poetry.lock`, `uv.lock`, `requirements.txt`
 - **Rust (Cargo)**: `target`, `Cargo.toml`, `Cargo.lock`
@@ -117,47 +118,48 @@ If `dependencyDirs` or `manifestFiles` are omitted from `.sandboxrc.json`, `ocs`
 - **Elixir (Mix)**: `deps`, `_build`, `mix.exs`, `mix.lock`
 - **Java / Kotlin / C++**: `.gradle`, `build`, `pom.xml`, `build.gradle`, `CMakeLists.txt`
 
-If multiple dependency folders exist (e.g. `node_modules` + `.venv` in a full-stack project), `ocs` safely links all of them concurrently (`reflink` on APFS/btrfs/xfs/ReFS, otherwise `symlink` or `junction`).
+If multiple dependency folders exist (e.g. `node_modules` + `.venv` in a full-stack project), `wtx` safely links all of them concurrently (`reflink` on APFS/btrfs/xfs/ReFS, otherwise `symlink` or `junction`).
 
 ### Cross-Platform & Windows Resilience (Block Cloning & EPERM Immunity)
-`ocs` uses a zero-overhead, 3-tier linking hierarchy designed to guarantee zero `EPERM` or `EXDEV` failures across corporate laptops, Dev Drives, restricted user accounts, and Docker mounts:
-- **True Windows Block Cloning (`reflink`)**: On **Windows 11 Dev Drives and ReFS volumes**, `ocs` automatically invokes `FSCTL_DUPLICATE_EXTENTS_TO_FILE` via Node's `COPYFILE_FICLONE_FORCE` to perform instantaneous, zero-copy `node_modules` / `target` block cloning.
+`wtx` uses a zero-overhead, 3-tier linking hierarchy designed to guarantee zero `EPERM` or `EXDEV` failures across corporate laptops, Dev Drives, restricted user accounts, and Docker mounts:
+- **True Windows Block Cloning (`reflink`)**: On **Windows 11 Dev Drives and ReFS volumes**, `wtx` automatically invokes `FSCTL_DUPLICATE_EXTENTS_TO_FILE` via Node's `COPYFILE_FICLONE_FORCE` to perform instantaneous, zero-copy `node_modules` / `target` block cloning.
 - **Directories (`dependencyDirs`, `.vscode`) Hierarchy**: `reflink` $\rightarrow$ `junction` (instantaneous Windows Directory Junction requiring zero Administrator rights or Developer Mode) $\rightarrow$ `recursive copy` (`fs.cp` fallback for SMB/FAT32/Docker mounts).
 - **Files (`sharedFiles` like `.env`) Hierarchy**: `symlink("file")` $\rightarrow$ `hardlink` (`fs.link()`, sharing live file data on NTFS/ReFS without elevated privileges) $\rightarrow$ `copyFile`.
-- **Path Case Normalization**: `ocs doctor` case-insensitively normalizes paths on Windows (`C:` vs `c:`) so drive letters never trigger false positive orphan warnings.
+- **Path Case Normalization**: `wtx doctor` case-insensitively normalizes paths on Windows (`C:` vs `c:`) so drive letters never trigger false positive orphan warnings.
 
 ### Hooks Security & Execution
-Hooks run in the context of the sandbox directory (`OPENCODE_SANDBOX=1`, `OPENCODE_SANDBOX_BRANCH=<branch>`). To bypass post-create or pre-destroy hooks when debugging or cleaning up untrusted branches, pass `--no-hooks`:
+Hooks run in the context of the sandbox directory (`WTX_SANDBOX=1`, `WTX_SANDBOX_BRANCH=<branch>`). To bypass post-create or pre-destroy hooks when debugging or cleaning up untrusted branches, pass `--no-hooks`:
 
 ```sh
-ocs create feature/test --no-hooks
-ocs destroy feature/test --no-hooks
+wtx create feature/test --no-hooks
+wtx destroy feature/test --no-hooks
 ```
 
 ## Scripting & CI Usage
 
-`ocs` is designed to be easily scripted using `--json`, `ocs which`, and `ocs run`:
+`wtx` is designed to be easily scripted using `--json`, `wtx which`, and `wtx run`:
 
 ```sh
 # Navigate directly to a sandbox from a subshell
-cd $(ocs which feature/auth)
+cd $(wtx which feature/auth)
 
 # Run CI checks in isolation inside a sandbox
-ocs create pr-123 --from origin/pr/123 --no-shell --no-port
-ocs run pr-123 -- pnpm test
-ocs destroy pr-123 --force
+wtx create pr-123 --from origin/pr/123 --no-shell --no-port
+wtx run pr-123 -- npm test
+wtx destroy pr-123 --force
 ```
 
 ## Architecture & Safety Notes
 
 - **Collision-Safe Paths**: Sandbox directory paths contain SHA-256 hashes of the repository root and branch name, preventing collisions between repositories with identical names (`api/`) or branches (`feature/a` vs `feature-a`).
-- **Concurrent Mutual Exclusion**: Registry state at `~/.opencode/sandboxes/registry.json` (`$OPENCODE_SANDBOX_HOME`) is protected by cross-process file locking via `proper-lockfile`.
-- **Self-Healing Doctor**: `ocs doctor` diagnoses orphaned worktrees (`git worktree list`) and stale registry entries (`--repair`, `--adopt-orphans`, `--remove-orphans`).
+- **Concurrent Mutual Exclusion**: Registry state at `~/.wtx/sandboxes/registry.json` (`$WTX_HOME`) is protected by cross-process file locking via `proper-lockfile`.
+- **Self-Healing Doctor**: `wtx doctor` diagnoses orphaned worktrees (`git worktree list`) and stale registry entries (`--repair`, `--adopt-orphans`, `--remove-orphans`).
 
 ## Development
 
 ```sh
-pnpm typecheck
-pnpm test
-pnpm build
+npm run typecheck
+npm test
+npm run build
 ```
+

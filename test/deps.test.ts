@@ -30,7 +30,7 @@ describe("dependency sharing", () => {
   });
 
   it("automatically detects and links Python .venv and hashes pyproject.toml", async () => {
-    const root = await temporaryDirectory("ocs-deps-python-");
+    const root = await temporaryDirectory("wtx-deps-python-");
     cleanup.push(root);
     const main = path.join(root, "main");
     const sandbox = path.join(root, "sandbox");
@@ -50,7 +50,7 @@ describe("dependency sharing", () => {
   });
 
   it("automatically detects and links Rust target/ and hashes Cargo.lock", async () => {
-    const root = await temporaryDirectory("ocs-deps-rust-");
+    const root = await temporaryDirectory("wtx-deps-rust-");
     cleanup.push(root);
     const main = path.join(root, "main");
     const sandbox = path.join(root, "sandbox");
@@ -67,7 +67,7 @@ describe("dependency sharing", () => {
   });
 
   it("links custom dependencyDirs and hashes custom manifestFiles from .sandboxrc.json", async () => {
-    const root = await temporaryDirectory("ocs-deps-custom-");
+    const root = await temporaryDirectory("wtx-deps-custom-");
     cleanup.push(root);
     const main = path.join(root, "main");
     const sandbox = path.join(root, "sandbox");
@@ -91,12 +91,12 @@ describe("dependency sharing", () => {
   });
 
   it("probes supportsReflink cleanly across Windows, macOS, and Linux without throwing or leaking probe dirs", async () => {
-    const root = await temporaryDirectory("ocs-deps-reflink-probe-");
+    const root = await temporaryDirectory("wtx-deps-reflink-probe-");
     cleanup.push(root);
     const { supportsReflink } = await import("../src/core/deps.js");
     const result = await supportsReflink(root);
     expect(typeof result).toBe("boolean");
     const entries = await fs.readdir(root);
-    expect(entries.filter((e) => e.startsWith(".ocs-reflink-")).length).toBe(0);
+    expect(entries.filter((e) => e.startsWith(".wtx-reflink-")).length).toBe(0);
   });
 });

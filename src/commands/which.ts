@@ -7,6 +7,6 @@ export async function whichCommand(mainRepoPath: string, branch: string): Promis
     process.exitCode = 1;
     return;
   }
-  // Raw path only — designed for subshell usage: cd $(ocs which feature/x)
+  // Raw path only — designed for subshell usage: cd $(wtx which feature/x)
   process.stdout.write(record.path + "\n");
 }
