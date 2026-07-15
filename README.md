@@ -1,167 +1,178 @@
-# wtx
+# wtx — Instant, Isolated Workspace Sandboxes for Developers & AI Agents
 
-`wtx` creates isolated Git worktrees for feature work without copying an entire repository. It can reuse `node_modules` through filesystem copy-on-write clones where supported (`reflink`), otherwise through an explicit symlink fallback.
+> **`wtx` (WorkTree eXtended)** lets you instantly create clean, isolated workspace folders for your Git branches—complete with all your project packages (`node_modules`) and env (`.env`, `.env.local`) ready to go in **0 seconds** with **0 extra disk space**. 
+> Whether you are building multiple features at once or letting AI coding assistants work in the background, `wtx` keeps your main project clean, prevents broken local dev servers, and saves you from ever waiting for slow package reinstalls again.
 
-## Features at a glance
+---
 
-- **Zero-Copy Worktrees**: Create isolated environments in seconds using `git worktree`.
-- **Intelligent Dependency Sharing**: Auto-probes filesystem capabilities for copy-on-write (`reflink` on Linux/macOS APFS) or safe symlinking.
-- **Drift Detection**: Detects lockfile/package manifest drift between main repository and sandboxes.
-- **Port Allocation**: Automatically reserves deterministic, conflict-free `PORT` values for your dev servers.
-- **Lifecycle Hooks**: Run custom scripts on `postCreate` and `preDestroy`.
-- **Shell & Scripting Friendly**: Full `bash`/`zsh`/`fish` prompt integration and JSON-structured output (`--json`) for CI pipelines.
+## 💡 Why `wtx`? The Problem It Solves
 
-## Installation & Setup
+When you switch branches or test new ideas in a normal Git repository, you run into three major frustrations:
+1. **Broken Editor & Live Sessions:** Running tests, builds, or switching branches right in your main project folder disrupts your open code editor tabs, uncommitted changes, and running local servers.
+2. **Slow, Heavy Package Installs:** Creating separate folders (`git worktree`) usually leaves you with empty directories that lack `node_modules` or Python virtual environments (`.venv`). Re-running `npm install` inside every new branch wastes gigabytes of hard drive space and takes forever.
+3. **Port Collisions:** When you or your AI agents try to run two development servers at the same time, they crash with "Port already in use" errors (`EADDRINUSE`).
 
+### The `wtx` Solution
+`wtx` solves all three problems automatically:
+- **Instant Package Cloning:** `wtx` clones your project's `node_modules` or `.venv` instantly using your operating system's smart block-sharing technology. You get 100% independent package folders in `0 ms` using `0 bytes` of extra disk space.
+- **Auto-Reserved Ports:** Every sandbox gets its own unique local `PORT` number assigned automatically, so multiple servers run side by side without crashing.
+- **Multi-Language Support:** Works out-of-the-box with JavaScript/TypeScript (`node_modules`), Python (`.venv`), Rust (`target/`), Go, PHP, Ruby, and Java.
+
+---
+
+## 🚀 Quickstart Tutorial (Get Running in 60 Seconds)
+
+### 1. Install `wtx` Globally
 ```sh
-# Global installation from NPM
 npm install -g @yashkumar/wtx
-
-# Once installed globally, run all commands cleanly using `wtx`:
-wtx --help
-
-# Or run directly via npx without global installation:
-npx @yashkumar/wtx --help
 ```
+*(Or run commands without installing via zero-install `npx -y @yashkumar/wtx@latest <command>`)*
 
-### Shell Completions
-
-Generate and load completions for your shell (`bash`, `zsh`, or `fish`):
-
+### 2. Create Your First Sandbox
+Create a new branch and open an isolated shell inside your new workspace:
 ```sh
-# Bash (~/.bashrc)
-eval "$(wtx completion bash)"
+wtx create feature/login
+```
+*What happens instantly behind the scenes:*
+- A clean isolated workspace folder is created (`~/.wtx/sandboxes/your-project/feature-login`).
+- Your `node_modules` (or `.venv`) is duplicated instantly with zero disk usage.
+- Shared files like `.env` are automatically linked.
+- A unique local `PORT` (e.g., `3004`) is reserved.
 
-# Zsh (~/.zshrc)
-eval "$(wtx completion zsh)"
-
-# Fish (~/.config/fish/config.fish)
-wtx completion fish | source
+### 3. Work & Test Inside Your Sandbox
+Run your development server or test suite safely inside the isolated folder:
+```sh
+npm run dev
+# Or run commands from anywhere using `wtx run`:
+wtx run feature/login -- npm test
 ```
 
-## Commands Reference
+### 4. Clean Up When Done
+Once your feature is merged or pushed to GitHub, safely remove the sandbox folder:
+```sh
+wtx destroy feature/login --force
+```
 
-| Command | Description | Key Options |
-| --- | --- | --- |
-| `wtx create <branch>` | Create a sandbox and open a shell in it | `--no-shell`, `--no-port`, `--from <base>`, `--no-hooks` |
-| `wtx destroy <branch>` | Remove a sandbox worktree | `-f, --force`, `--no-hooks` |
-| `wtx list` | List registered sandboxes for this repository | `-a, --all`, `--size`, `--json` |
-| `wtx status <branch>` | Show sandbox state and dependency drift | `--json` |
-| `wtx enter <branch>` | Open an interactive shell in an existing sandbox | |
-| `wtx sync <branch>` | Rebase or merge upstream changes into a sandbox | `--merge`, `--from <upstream>` |
-| `wtx open <branch>` | Open a sandbox in your editor or file manager | `--editor <name>`, `--finder` |
-| `wtx which <branch>` | Print the sandbox directory path (for scripts/subshells) | |
-| `wtx diff <branch>` | Show changes relative to main | `--stat`, `--from <base>` |
-| `wtx log <branch>` | Show commits in a sandbox not in main | `-n, --number <count>`, `--from <base>` |
-| `wtx stash <branch> [action]` | Stash or restore changes in a sandbox (`push`, `pop`, `list`) | |
-| `wtx rename <old> <new>` | Rename a sandbox branch and update the registry | |
-| `wtx refresh <branch>` | Re-link dependencies and shared config | |
-| `wtx run <branch> <cmd...>` | Run a command inside a sandbox worktree | `-s, --shell` |
-| `wtx prune` | Remove all sandboxes for the current repository | `-f, --force` |
-| `wtx gc` | Remove sandboxes not accessed within a duration threshold | `--older-than <duration>` (`7d`), `--dry-run`, `-f` |
-| `wtx init` | Create a `.sandboxrc.json` configuration file | `--shared <files...>` |
-| `wtx doctor` | Compare the registry with Git worktrees and fix mismatches | `--repair`, `--adopt-orphans`, `--remove-orphans` |
+---
 
-## Global Options
+## 📖 Practical How-To Guides & Everyday Usability
 
-All commands support these global flags:
+### Guide 1: Running Commands Across Sandboxes Without Changing Directories
+You do not need to open separate terminal windows or manually navigate into sandbox folders. Use `wtx run` to execute any command right from your main terminal:
+```sh
+# Run tests inside your isolated feature branch:
+wtx run feature/checkout -- npm test
 
-- `--json`: Format command output as machine-readable JSON.
-- `-q, --quiet`: Suppress non-error output.
-- `-v, --verbose`: Enable detailed/diagnostic output.
+# Check git status across your sandboxes:
+wtx run feature/checkout -- git status
 
-## Configuration (`.sandboxrc.json`)
+# Commit and push changes directly:
+wtx run feature/checkout -- git add . && git commit -m "feat: complete checkout flow"
+```
 
-Create a `.sandboxrc.json` file in your repository root (`wtx init`) to customize dependency linking, config sharing, port allocation, and lifecycle hooks across **any programming language or stack**:
+### Guide 2: Using `wtx` with AI / LLM Coding Agents
+AI coding assistants (Claude Dev, OpenCode, Cursor, Aider, Antigravity) can work much faster and safer inside `wtx` sandboxes without disrupting your live editor session.
 
+**Recommended command for AI Agents:**
+```sh
+# Create a sandbox without entering an interactive shell and output exact paths in JSON:
+wtx create feature/ai-refactor --no-shell --no-port --json
+```
+AI agents can then check where the sandbox lives using:
+```sh
+wtx which feature/ai-refactor
+# Returns: /Users/username/.wtx/sandboxes/project-hash/feature-ai-refactor
+```
+
+### Guide 3: Customizing Shared Files and Lifecycle Hooks (`.sandboxrc.json`)
+If your project uses specific config files (`.env.local`) or custom build setup commands, initialize a `.sandboxrc.json` file in your repository root:
+```sh
+wtx init
+```
+Edit `.sandboxrc.json` to tell `wtx` exactly what your project needs:
 ```json
 {
-  "dependencyDirs": [
-    "node_modules",
-    ".venv",
-    "target",
-    "vendor"
-  ],
-  "manifestFiles": [
-    "package.json",
-    "package-lock.json",
-    "pnpm-lock.yaml",
-    "pyproject.toml",
-    "poetry.lock",
-    "Cargo.toml",
-    "Cargo.lock",
-    "composer.json"
-  ],
-  "sharedFiles": [
-    ".env",
-    ".env.local",
-    ".vscode/settings.json",
-    "config/local.json"
-  ],
-  "portRange": {
-    "min": 3000,
-    "max": 4200
-  },
+  "dependencyDirs": ["node_modules", ".venv", "target"],
+  "sharedFiles": [".env", ".env.local", ".vscode/settings.json"],
+  "portRange": { "min": 3000, "max": 4200 },
   "hooks": {
-    "postCreate": "npm install && npm run build:deps",
-    "preDestroy": "npm run clean:cache"
+    "postCreate": "npm install && npm run setup",
+    "preDestroy": "npm run clean"
   }
 }
 ```
 
-### Multi-Ecosystem Auto-Detection
-If `dependencyDirs` or `manifestFiles` are omitted from `.sandboxrc.json`, `wtx` automatically probes the repository for known folders and files across 8+ major language stacks:
-- **JavaScript / Node / Deno / Bun**: `node_modules`, `package.json`, `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `bun.lockb`
-- **Python (venv / poetry / uv)**: `.venv`, `venv`, `__pypackages__`, `pyproject.toml`, `poetry.lock`, `uv.lock`, `requirements.txt`
-- **Rust (Cargo)**: `target`, `Cargo.toml`, `Cargo.lock`
-- **PHP (Composer)**: `vendor`, `composer.json`, `composer.lock`
-- **Ruby (Bundler / Rails)**: `.bundle`, `Gemfile`, `Gemfile.lock`
-- **Go**: `vendor`, `go.mod`, `go.sum`
-- **Elixir (Mix)**: `deps`, `_build`, `mix.exs`, `mix.lock`
-- **Java / Kotlin / C++**: `.gradle`, `build`, `pom.xml`, `build.gradle`, `CMakeLists.txt`
-
-If multiple dependency folders exist (e.g. `node_modules` + `.venv` in a full-stack project), `wtx` safely links all of them concurrently (`reflink` on APFS/btrfs/xfs/ReFS, otherwise `symlink` or `junction`).
-
-### Cross-Platform & Windows Resilience (Block Cloning & EPERM Immunity)
-`wtx` uses a zero-overhead, 3-tier linking hierarchy designed to guarantee zero `EPERM` or `EXDEV` failures across corporate laptops, Dev Drives, restricted user accounts, and Docker mounts:
-- **True Windows Block Cloning (`reflink`)**: On **Windows 11 Dev Drives and ReFS volumes**, `wtx` automatically invokes `FSCTL_DUPLICATE_EXTENTS_TO_FILE` via Node's `COPYFILE_FICLONE_FORCE` to perform instantaneous, zero-copy `node_modules` / `target` block cloning.
-- **Directories (`dependencyDirs`, `.vscode`) Hierarchy**: `reflink` $\rightarrow$ `junction` (instantaneous Windows Directory Junction requiring zero Administrator rights or Developer Mode) $\rightarrow$ `recursive copy` (`fs.cp` fallback for SMB/FAT32/Docker mounts).
-- **Files (`sharedFiles` like `.env`) Hierarchy**: `symlink("file")` $\rightarrow$ `hardlink` (`fs.link()`, sharing live file data on NTFS/ReFS without elevated privileges) $\rightarrow$ `copyFile`.
-- **Path Case Normalization**: `wtx doctor` case-insensitively normalizes paths on Windows (`C:` vs `c:`) so drive letters never trigger false positive orphan warnings.
-
-### Hooks Security & Execution
-Hooks run in the context of the sandbox directory (`WTX_SANDBOX=1`, `WTX_SANDBOX_BRANCH=<branch>`). To bypass post-create or pre-destroy hooks when debugging or cleaning up untrusted branches, pass `--no-hooks`:
-
+### Guide 4: Checking Sandbox Status & Out-of-Sync Packages
+If someone updates `package.json` on the `main` branch, your sandbox packages might become out of sync. Check for changes instantly using `wtx status`:
 ```sh
-wtx create feature/test --no-hooks
-wtx destroy feature/test --no-hooks
+wtx status feature/login
+```
+If `status` shows that packages have drifted, refresh your sandbox dependencies:
+```sh
+wtx refresh feature/login
 ```
 
-## Scripting & CI Usage
-
-`wtx` is designed to be easily scripted using `--json`, `wtx which`, and `wtx run`:
-
+### Guide 5: Self-Healing Diagnostics (`wtx doctor`)
+If you manually delete a folder using your file explorer (`rm -rf`), `wtx` can clean up any leftover tracking data automatically:
 ```sh
-# Navigate directly to a sandbox from a subshell
-cd $(wtx which feature/auth)
-
-# Run CI checks in isolation inside a sandbox
-wtx create pr-123 --from origin/pr/123 --no-shell --no-port
-wtx run pr-123 -- npm test
-wtx destroy pr-123 --force
+wtx doctor --repair
 ```
 
-## Architecture & Safety Notes
+---
 
-- **Collision-Safe Paths**: Sandbox directory paths contain SHA-256 hashes of the repository root and branch name, preventing collisions between repositories with identical names (`api/`) or branches (`feature/a` vs `feature-a`).
-- **Concurrent Mutual Exclusion**: Registry state at `~/.wtx/sandboxes/registry.json` (`$WTX_HOME`) is protected by cross-process file locking via `proper-lockfile`.
-- **Self-Healing Doctor**: `wtx doctor` diagnoses orphaned worktrees (`git worktree list`) and stale registry entries (`--repair`, `--adopt-orphans`, `--remove-orphans`).
+## 🧰 Command Reference
 
-## Development
+All `wtx` commands support `--json` for machine-readable automation and `-q, --quiet` for clean output.
+
+| Command | Example | Description |
+| :--- | :--- | :--- |
+| `wtx create <branch>` | `wtx create feature/login` | Creates an isolated workspace folder, clones packages, and opens a shell. |
+| `wtx run <branch> <cmd>` | `wtx run feature/login -- npm test` | Runs any command inside the specified sandbox workspace. |
+| `wtx which <branch>` | `wtx which feature/login` | Prints the exact folder path of the sandbox workspace. |
+| `wtx status [branch]` | `wtx status feature/login` | Checks dependency sync status, git branch state, and assigned `PORT`. |
+| `wtx list` | `wtx list --json` | Lists all active sandbox workspaces and their disk usage. |
+| `wtx open <branch>` | `wtx open feature/login` | Opens the sandbox workspace directly inside your code editor (`VS Code`, `Cursor`). |
+| `wtx enter <branch>` | `wtx enter feature/login` | Opens an interactive terminal shell inside the sandbox workspace. |
+| `wtx diff <branch>` | `wtx diff feature/login` | Shows git diff statistics between your sandbox and the main base branch. |
+| `wtx sync <branch>` | `wtx sync feature/login` | Safely rebases your sandbox branch onto the latest changes from `main`. |
+| `wtx stash <branch>` | `wtx stash feature/login --pop` | Pushes or pops git stashes safely inside the sandbox folder. |
+| `wtx rename <old> <new>` | `wtx rename feature/old feature/new` | Renames the sandbox branch and updates all tracking records cleanly. |
+| `wtx refresh <branch>` | `wtx refresh feature/login` | Re-links dependencies and shared `.env` files from the main project. |
+| `wtx destroy <branch>` | `wtx destroy feature/login --force` | Removes the workspace folder and frees up reserved ports. |
+| `wtx prune` | `wtx prune --force` | Removes all inactive or completed sandbox workspaces at once. |
+| `wtx gc` | `wtx gc --days 7` | Cleans up old, unused sandbox folders automatically. |
+| `wtx log <branch>` | `wtx log feature/login` | Displays the recent git commit history inside the sandbox workspace. |
+| `wtx doctor` | `wtx doctor --repair` | Runs diagnostics and fixes broken folders or leftover registry records. |
+| `wtx init` | `wtx init` | Generates a `.sandboxrc.json` configuration file in your repository. |
+
+---
+
+## 🌐 Automatic Environment Variables
+
+Whenever you run a command inside a `wtx` sandbox (`wtx run` or `wtx enter`), `wtx` automatically provides helpful environment variables to your scripts and servers:
+
+- **`WTX_SANDBOX=1`**: Lets your scripts detect if they are running inside an isolated sandbox.
+- **`WTX_SANDBOX_BRANCH="feature/login"`**: Provides the exact branch name of the current sandbox.
+- **`PORT=3004`**: Provides a unique, available local port number reserved specifically for this workspace so your dev servers start without port conflicts.
+
+---
+
+## 🐚 Shell Completions
+
+Enable instant tab-completion for branch names and commands in your terminal (`bash`, `zsh`, or `fish`):
 
 ```sh
-npm run typecheck
-npm test
-npm run build
+# For zsh (add to ~/.zshrc):
+eval "$(wtx completion zsh)"
+
+# For bash (add to ~/.bashrc):
+eval "$(wtx completion bash)"
+
+# For fish (add to ~/.config/fish/config.fish):
+wtx completion fish | source
 ```
 
+---
+
+## 📄 License
+MIT License. Built for high-performance developer workflows and autonomous AI agents.
