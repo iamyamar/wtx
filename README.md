@@ -1,22 +1,28 @@
-# wtx — Instant, Isolated Workspace Sandboxes for Developers & AI Agents
+<div align="center">
 
-> **`wtx` (WorkTree eXtended)** lets you instantly create clean, isolated workspace folders for your Git branches—complete with all your project packages (`node_modules`) and env (`.env`, `.env.local`) ready to go in **0 seconds** with **0 extra disk space**. 
-> Whether you are building multiple features at once or letting AI coding assistants work in the background, `wtx` keeps your main project clean, prevents broken local dev servers, and saves you from ever waiting for slow package reinstalls again.
+# ⚡️ wtx — WorkTree eXtended
+
+**Instant, zero-copy Git branch sandboxes for developers & AI coding agents.**
+
+[![NPM Version](https://img.shields.io/npm/v/@yashkumar/wtx?style=flat-square&color=31c27c&logo=npm)](https://www.npmjs.com/package/@yashkumar/wtx)
+[![NPM Downloads](https://img.shields.io/npm/dm/@yashkumar/wtx?style=flat-square&color=blue&logo=npm)](https://www.npmjs.com/package/@yashkumar/wtx)
+[![GitHub Stars](https://img.shields.io/github/stars/iamyamar/wtx?style=flat-square&color=gold&logo=github)](https://github.com/iamyamar/wtx)
+[![GitHub Issues](https://img.shields.io/github/issues/iamyamar/wtx?style=flat-square&color=orange&logo=github)](https://github.com/iamyamar/wtx/issues)
+[![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg?style=flat-square)](https://github.com/iamyamar/wtx/blob/main/LICENSE)
+
+</div>
 
 ---
 
-## 💡 Why `wtx`? The Problem It Solves
+> **`wtx`** instantly creates clean, isolated workspace folders for your Git branches—with your packages (`node_modules`) and configs (`.env`, `.env.local`) ready in **0 seconds** with **0 extra disk space**. 
+> It empowers developers and **AI coding assistants to work in parallel across multiple branches and multiple features simultaneously** without conflicts or disruptions.
 
-When you switch branches or test new ideas in a normal Git repository, you run into three major frustrations:
-1. **Broken Editor & Live Sessions:** Running tests, builds, or switching branches right in your main project folder disrupts your open code editor tabs, uncommitted changes, and running local servers.
-2. **Slow, Heavy Package Installs:** Creating separate folders (`git worktree`) usually leaves you with empty directories that lack `node_modules` or Python virtual environments (`.venv`). Re-running `npm install` inside every new branch wastes gigabytes of hard drive space and takes forever.
-3. **Port Collisions:** When you or your AI agents try to run two development servers at the same time, they crash with "Port already in use" errors (`EADDRINUSE`).
-
-### The `wtx` Solution
-`wtx` solves all three problems automatically:
-- **Instant Package Cloning:** `wtx` clones your project's `node_modules` or `.venv` instantly using your operating system's smart block-sharing technology. You get 100% independent package folders in `0 ms` using `0 bytes` of extra disk space.
-- **Auto-Reserved Ports:** Every sandbox gets its own unique local `PORT` number assigned automatically, so multiple servers run side by side without crashing.
-- **Multi-Language Support:** Works out-of-the-box with JavaScript/TypeScript (`node_modules`), Python (`.venv`), Rust (`target/`), Go, PHP, Ruby, and Java.
+Whether you are building complex features or letting multiple AI agents code concurrently, `wtx`:
+- ✨ **Keeps main repo clean** (No uncommitted clutter or broken sessions).
+- 🤖 **Parallel AI agent coding** (Run multiple autonomous AI agents simultaneously across isolated branch sandboxes).
+- 📦 **Skips `npm install`** (Instant copy-on-write `reflink` package sharing across branches).
+- 🔌 **Prevents port crashes** (Auto-reserves unique local `PORT` numbers for concurrent dev servers).
+- 🌐 **Multi-language auto-detect** (Works out-of-the-box with Node, Python `.venv`, Rust `target/`, Go, PHP, Java).
 
 ---
 

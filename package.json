@@ -1,6 +1,6 @@
 {
   "name": "@yashkumar/wtx",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Create isolated Git worktree sandboxes with instantaneous dependency linking (`reflink`) for feature work and AI/LLM agents.",
   "type": "module",
   "packageManager": "pnpm@11.7.0",
@@ -20,7 +20,14 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "smoke": "tsc -p tsconfig.json && ./scripts/manual-smoke.sh",
-    "prepare": "tsc -p tsconfig.json"
+    "prepare": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm test && npm run build",
+    "preversion": "npm test && npm run build",
+    "postversion": "git push && git push --tags && npm publish --access public",
+    "release": "npm version patch",
+    "release:patch": "npm version patch",
+    "release:minor": "npm version minor",
+    "release:major": "npm version major"
   },
   "engines": {
     "node": ">=20"
@@ -33,6 +40,14 @@
     "cli"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iamyamar/wtx.git"
+  },
+  "bugs": {
+    "url": "https://github.com/iamyamar/wtx/issues"
+  },
+  "homepage": "https://github.com/iamyamar/wtx#readme",
   "dependencies": {
     "chalk": "^5.4.1",
     "commander": "^13.1.0",

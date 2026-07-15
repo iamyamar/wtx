@@ -20,12 +20,16 @@ import { statusCommand } from "./commands/status.js";
 import { syncCommand } from "./commands/sync.js";
 import { whichCommand } from "./commands/which.js";
 import { getRepoRoot } from "./core/worktree.js";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const pkg = require("../package.json");
 
 const program = new Command();
 program
   .name("wtx")
-  .description("Create isolated Git worktree sandboxes with zero-copy dependency linking for feature work and AI/LLM agents.")
-  .version("0.2.0")
+  .description(pkg.description)
+  .version(pkg.version)
   .option("--json", "Output results as JSON")
   .option("-q, --quiet", "Suppress non-error output")
   .option("-v, --verbose", "Show detailed output");
