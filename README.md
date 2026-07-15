@@ -14,12 +14,14 @@
 ## Installation & Setup
 
 ```sh
-npm install
-npm run build
-npm link
+# Global installation from NPM
+npm install -g @yashkumar/wtx
 
-# Or run directly via npx / tsx
+# Once installed globally, run all commands cleanly using `wtx`:
 wtx --help
+
+# Or run directly via npx without global installation:
+npx @yashkumar/wtx --help
 ```
 
 ### Shell Completions

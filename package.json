@@ -1,5 +1,5 @@
 {
-  "name": "wtx",
+  "name": "@yashkumar/wtx",
   "version": "0.2.0",
   "description": "Create isolated Git worktree sandboxes with instantaneous dependency linking (`reflink`) for feature work and AI/LLM agents.",
   "type": "module",
